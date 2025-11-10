@@ -223,13 +223,8 @@ backend/
 
 ---
 
-## 12. Submission
+## 12. Submission Repo Link
 
-Repository: [`Telesphore-Uwabera/CoreDev_A2SV`](https://github.com/Telesphore-Uwabera/CoreDev_A2SV)  
-Commit history captures major milestones (`feat: implement ecommerce backend API`).  
-Follow assessment instructions to submit the repository link via the provided Google Form before the deadline.
+Repository: [`Telesphore-Uwabera/CoreDev_A2SV`](https://github.com/Telesphore-Uwabera/CoreDev_A2SV)    
 
 --- 
-
-With this setup you can clone, install, run migrations, start the dev server, and execute tests to verify every user story end-to-end.
-
