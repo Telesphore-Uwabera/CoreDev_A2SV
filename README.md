@@ -111,6 +111,15 @@ Request → Express Router → Controller → Service → Repository (Prisma) �
    npm test
    ```
 
+### Running From Source (Quick Checklist)
+1. Install Node.js 18+ and npm 9+.
+2. Clone the repository and `cd backend`.
+3. Create `.env` with the variables listed above.
+4. Run `npm install`.
+5. Execute `npx prisma migrate dev` (and `npx prisma generate` if needed).
+6. Start the dev server with `npm run dev`.
+7. Optionally, run `npm test` to execute the Vitest/Supertest suite.
+
 ---
 
 ## 6. API Endpoints
