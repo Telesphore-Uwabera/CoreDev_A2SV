@@ -118,11 +118,14 @@ Request → Express Router → Controller → Service → Repository (Prisma) �
 4. Run `npm install`.
 5. Execute `npx prisma migrate dev` (and `npx prisma generate` if needed).
 6. Start the dev server with `npm run dev`.
-7. Optionally, run `npm test` to execute the Vitest/Supertest suite.
+7. Open http://localhost:3000/docs for live Swagger UI documentation.
+8. Optionally, run `npm test` to execute the Vitest/Supertest suite.
 
 ---
 
 ## 6. API Endpoints
+
+>  Swagger UI available at http://localhost:3000/docs during development.
 
 ### Authentication
 | Method | Path               | Description              | Auth |
@@ -237,3 +240,8 @@ backend/
 Repository: [`Telesphore-Uwabera/CoreDev_A2SV`](https://github.com/Telesphore-Uwabera/CoreDev_A2SV)    
 
 --- 
+
+
+
+
+
