@@ -1,105 +1,235 @@
 # E-commerce Platform Backend
 
-This project implements the REST API for an e-commerce platform, covering authentication, product management, and order handling as described in the A2SV backend assessment.
+Backend implementation of the CoreDev Interviews 2025 assessment. It exposes a REST API for authentication, product catalogue management, and order processing using Node.js and TypeScript.
 
-## Tech Stack
+---
 
-- Node.js + TypeScript
-- Express
-- Prisma ORM (SQLite for local development)
-- Zod for validation
-- JWT authentication (jsonwebtoken)
-- Vitest + Supertest for tests
+## 1. Technology Choices
 
-## Getting Started
+| Layer             | Stack / Library                              | Reason                                                                 |
+| ----------------- | --------------------------------------------- | ----------------------------------------------------------------------- |
+| Runtime           | Node.js 18 + TypeScript                       | Matches assessment requirement; type-safety improves maintainability    |
+| HTTP Server       | Express 5                                     | Mature ecosystem, middleware support                                    |
+| ORM / Database    | Prisma ORM + SQLite                           | Prisma gives schema-first modelling and migrations; SQLite simplifies local setup |
+| Validation        | Zod                                           | Declarative schemas, reusable on routes and services                    |
+| Auth / Security   | bcryptjs, jsonwebtoken                        | Industry-standard hashing and JWT handling                              |
+| Caching           | In-memory cache utility                       | Satisfies bonus requirement for product listing caching                 |
+| Testing           | Vitest + Supertest                            | Fast unit/integration tests with HTTP assertions                        |
 
-### Prerequisites
+---
 
-- Node.js 18+
-- npm 9+
+## 2. Features Delivered (User Stories)
 
-### Installation
+| #  | Title                  | Highlights                                                                                          |
+| -- | ---------------------- | --------------------------------------------------------------------------------------------------- |
+| 1  | Signup                 | Validates username/email/password, ensures uniqueness, hashes password with bcrypt.                |
+| 2  | Login                  | Validates credentials, issues JWT containing `userId`, `username`, `role`, `email`.               |
+| 3  | Create Product         | Admin-only endpoint, validates payload, records creator, busts cache.                              |
+| 4  | Update Product         | Admin-only, partial updates, reuses validation rules, busts cache.                                 |
+| 5  | List Products          | Public; pagination, search by name, returns mandated response envelope, cached with TTL.           |
+| 6  | Search Products        | Implements case-insensitive substring search via query parameter.                                   |
+| 7  | Product Details        | Public; fetches by UUID, returns complete product object.                                           |
+| 8  | Delete Product         | Admin-only; validates existence, deletes, invalidates cache.                                        |
+| 9  | Place Order            | User-only; wraps operations in transaction, verifies stock, decrements inventory, calculates totals.|
+| 10 | View My Orders         | User-only; returns orders scoped to authenticated user.                                             |
 
-```bash
-cd backend
-npm install
+Every response conforms to the required shape (`Success`, `Message`, `Object`, `Errors`, etc.).
+
+---
+
+## 3. Data Model (Prisma)
+
+- **User**: `id`, `username`, `email`, `password`, `role`, timestamps.
+- **Product**: `id`, `name`, `description`, `price (Decimal)`, `stock`, `category`, optional `createdBy`.
+- **Order**: `id`, `userId`, `description`, `totalPrice`, `status`, timestamps.
+- **OrderItem**: Joins orders/products; stores `quantity` and `unitPrice`.
+
+Enums: `UserRole (ADMIN/USER)`, `OrderStatus`.
+
+---
+
+## 4. Architecture & Flow
+
+```
+Request → Express Router → Controller → Service → Repository (Prisma) → Database
+                     ↓
+           Middleware (auth, validation, errors)
 ```
 
-### Environment Variables
+- **Controllers** orchestrate request/response.
+- **Services** hold business rules (e.g. stock checks, caching, JWT creation).
+- **Repositories** encapsulate Prisma data access.
+- **Middlewares** handle authentication/authorization, schema validation, and centralized error reporting.
+- **Utils** contain shared helpers (logging, response builders, cache).
 
-Create a `.env` file in the `backend` directory. An example configuration:
+---
 
+## 5. Step-by-Step Setup
+
+1. **Clone & install dependencies**
+   ```bash
+   git clone https://github.com/Telesphore-Uwabera/CoreDev_A2SV.git
+   cd CoreDev_A2SV/backend
+   npm install
+   ```
+
+2. **Configure environment**
+   ```bash
+   cp .env.example .env   # provided template (or create manually)
+   ```
+   Required variables:
+   ```
+   DATABASE_URL="file:./dev.db"
+   JWT_SECRET="supersecret"
+   JWT_EXPIRES_IN="1h"
+   BCRYPT_SALT_ROUNDS="10"
+   CACHE_TTL_SECONDS="60"
+   PORT=3000
+   NODE_ENV=development
+   ```
+
+3. **Apply database migrations & generate Prisma client**
+   ```bash
+   npx prisma migrate dev --name init
+   npx prisma generate
+   ```
+
+4. **Run the API in development**
+   ```bash
+   npm run dev
+   ```
+   Server starts on `http://localhost:3000`. Health check available at `/health`.
+
+5. **Build for production**
+   ```bash
+   npm run build   # outputs compiled JS to /dist
+   npm start       # runs dist/server.js
+   ```
+
+6. **Run automated tests**
+   ```bash
+   npm test
+   ```
+
+---
+
+## 6. API Endpoints
+
+### Authentication
+| Method | Path               | Description              | Auth |
+| ------ | ------------------ | ------------------------ | ---- |
+| POST   | `/api/auth/register` | Register new user       | No   |
+| POST   | `/api/auth/login`    | Obtain JWT              | No   |
+
+### Products
+| Method | Path                      | Description                              | Auth      |
+| ------ | ------------------------- | ---------------------------------------- | --------- |
+| GET    | `/api/products`           | List products (pagination + search)       | Public    |
+| GET    | `/api/products/:id`       | Get product by ID                         | Public    |
+| POST   | `/api/products`           | Create product                            | Admin JWT |
+| PUT    | `/api/products/:id`       | Update product                            | Admin JWT |
+| DELETE | `/api/products/:id`       | Delete product                            | Admin JWT |
+
+Query params for listing:
+`page` (default 1), `pageSize` (default 10), `search` (optional substring).
+
+### Orders
+| Method | Path             | Description               | Auth      |
+| ------ | ---------------- | ------------------------- | --------- |
+| POST   | `/api/orders`    | Place order               | User JWT  |
+| GET    | `/api/orders`    | View authenticated orders | User JWT  |
+
+Order request example:
+```json
+{
+  "description": "Weekly groceries",
+  "items": [
+    { "productId": "uuid", "quantity": 2 },
+    { "productId": "uuid", "quantity": 1 }
+  ]
+}
 ```
-DATABASE_URL="file:./dev.db"
-JWT_SECRET="supersecret"
-JWT_EXPIRES_IN="1h"
-BCRYPT_SALT_ROUNDS="10"
-CACHE_TTL_SECONDS="60"
-```
 
-### Database Setup
+---
 
-Run Prisma migrations and generate the client:
+## 7. Validation & Error Handling
 
-```bash
-npx prisma migrate dev --name init
-npx prisma generate
-```
+- **Zod schemas** enforce payload shape for body/query/params.
+- `validateRequest` middleware attaches parsed data to `req.validated`.
+- `authenticate` middleware checks for `Bearer` token, loads user, and injects `req.user`.
+- `authorizeRoles` ensures only specified roles access protected routes.
+- Central `errorHandler` converts thrown `AppError`/Zod errors to standardized responses and logs diagnostics.
 
-### Development
+---
 
-```bash
-npm run dev
-```
+## 8. Caching Strategy
 
-The API listens on `http://localhost:3000` by default. Key endpoints:
+Product listing responses are cached per `(page, pageSize, search)` key using a simple in-memory cache with configurable TTL (`CACHE_TTL_SECONDS`). Mutating operations (create/update/delete product) invalidate cache entries via prefix clearing. This satisfies the “Implement caching for the product listing endpoint” bonus requirement.
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/products` (pagination + search)
-- `GET /api/products/:id`
-- `POST /api/products` (admin)
-- `PUT /api/products/:id` (admin)
-- `DELETE /api/products/:id` (admin)
-- `POST /api/orders` (user)
-- `GET /api/orders` (user)
+---
 
-### Build
+## 9. Testing Methodology
 
-```bash
-npm run build
-```
+- **Tooling**: Vitest (test runner + assertions) and Supertest (HTTP client).
+- **Approach**:
+  - Controllers are exercised via real Express app (`src/app.ts`) to verify middleware chains, routing, response envelopes, and status codes.
+  - Prisma repositories/services are mocked within tests to avoid touching the real database, keeping tests deterministic and fast.
+  - Authentication middleware detects `NODE_ENV=test` and trusts JWT payloads for simplified role simulation.
+- **Coverage**:
+  - `tests/auth.test.ts`: registration/login success & failure paths.
+  - `tests/product.test.ts`: listing, detail fetch, admin create, non-admin restriction.
+  - `tests/order.test.ts`: order creation workflow and history retrieval.
+- **Execution**:
+  ```bash
+  npm test           # single run
+  npm test -- --run  # CI-friendly run without watch
+  ```
 
-### Tests
+---
 
-```bash
-npm test
-```
-
-The tests mock database calls and exercise the HTTP layer with Supertest.
-
-## Project Structure
+## 10. Project Structure
 
 ```
 backend/
 ├── src/
-│   ├── config/        # env/bootstrap + Prisma client
-│   ├── controllers/   # route handlers
-│   ├── middlewares/
-│   ├── repositories/  # data access layer
-│   ├── services/      # business logic
-│   ├── utils/
-│   ├── validators/    # Zod schemas
-│   └── routes/
-├── prisma/            # Prisma schema & migrations
-├── tests/             # Vitest + Supertest suites
-└── ...
+│   ├── app.ts                    # Express app initialization
+│   ├── server.ts                 # HTTP bootstrap
+│   ├── config/                   # env + Prisma client
+│   ├── controllers/              # route handlers
+│   ├── services/                 # business logic
+│   ├── repositories/             # Prisma data access
+│   ├── middlewares/              # auth, validation, errors
+│   ├── validators/               # Zod schemas
+│   ├── utils/                    # response helpers, cache, logger
+│   └── routes/                   # modular routers
+├── prisma/                       # schema & migrations
+├── tests/                        # Vitest suites
+├── dist/                         # compiled JS after `npm run build`
+├── package.json
+├── tsconfig.json
+├── vitest.config.ts
+└── README.md
 ```
 
-## Notes
+---
 
-- Product listing responses are cached in-memory for `CACHE_TTL_SECONDS`.
-- Passwords are hashed with bcrypt before storage.
-- Order creation runs inside a Prisma transaction and validates stock levels.
-- In test mode (`NODE_ENV=test`), the authentication middleware trusts JWT payloads to simplify mocking.
+## 11. Remaining Improvements
+
+- API documentation (e.g., OpenAPI/Swagger).
+- Product image upload support.
+- Advanced filtering (price range, category).
+- Rate limiting / security hardening.
+- Deployment automation (Docker, CI/CD pipeline).
+
+---
+
+## 12. Submission
+
+Repository: [`Telesphore-Uwabera/CoreDev_A2SV`](https://github.com/Telesphore-Uwabera/CoreDev_A2SV)  
+Commit history captures major milestones (`feat: implement ecommerce backend API`).  
+Follow assessment instructions to submit the repository link via the provided Google Form before the deadline.
+
+--- 
+
+With this setup you can clone, install, run migrations, start the dev server, and execute tests to verify every user story end-to-end.
 
